@@ -189,12 +189,13 @@ def determine_links(files, dirs_to_replace):
     for f in files:
         # containing_dir = os.path.dirname(f)
         for d in dirs_to_replace:
-            if d in f:
+            if os.path.abspath(f).startswith(d):
                 to_remove.append(f)
                 break
-    return to_replace
+    return to_remove
 
 def create_links(files, to_replace):
+    count = 0
     if files == to_replace:
         fkeep = files[0]
     else:
@@ -203,27 +204,26 @@ def create_links(files, to_replace):
                 fkeep = f
                 break
 
+    fkeep_abspath = os.path.abspath(fkeep)
     for f in files:
         if f in to_replace and f is not fkeep:
             os.remove(f)
-            os.symlink(fkeep, f)
+            os.symlink(fkeep_abspath, f)
+            count += 1
+    return count
 
 def determine_and_replace(files, dirs_to_replace, replace_all):
     if dirs_to_replace is None and replace_all == False:
-        return
+        return 0
     elif dirs_to_replace is None: #replace_all must be true
-        create_links(files, files)
+        return create_links(files, files)
     else:
         to_replace = determine_links(files, dirs_to_replace)
-        create_links(files, to_replace)
+        return create_links(files, to_replace)
 
-# a = find_all(os.getcwd(), skip_hidden=True)
-# start_time = time.time()
-# (hash_dict, files_point, files) = unique_hashes_and_files(os.getcwd())
-# end_time = time.time()
-# print(f"Time elapsed for hashes: {end_time - start_time}")
-# print(len(files))
-# print(len(hash_dict))
+
+
+########### BEGIN SCRIPT ###########
 
 dir = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
 dir = os.getcwd()
@@ -239,114 +239,33 @@ if len(sys.argv) > 1:
             replace_all = True
         elif sys.argv[2] == '--dirs-to-replace':
             dirs_to_replace = [os.path.abspath(f) for f in sys.argv[3:]]
+            # TODO: currently using abspaths for everything symlink related
+            # this ensures symlinks work, but it does not make portability good
+            # look into whether some sort of relative symlink is best here
         else:
-            print("Invalid argument: " + sys.argv[2]))
+            print("Invalid argument: " + sys.argv[2])
             exit(1)
-
-# start_time = time.time()
-# (size_dict, files, count, unique_sizes) = same_size_same_hash(dir)
-# # (size_dict, files) = unique_via_comparsions(dir)
-# end_time = time.time()
-# print(f"Time elapsed for sizes: {end_time - start_time}")
-# print(f"Total files: {len(files)}")
-# print(f"Total unique: {len(size_dict)}")
 
 start_time = time.time()
 seed = random.randint(0, 100)
 offset = 0
-# f = lambda x : read_bits(x, 1000, startpoint=seed, offset=offset)
-# (size_dict, files, count, unique_sizes) = same_size_same_hash(dir, hash_fun=f)
-(d, files, counts) = unique_via_comparsions(dir, hash_funs=[os.path.getsize, get_hash])
+f = lambda x : read_bits(x, 1000, startpoint=seed, offset=offset)
+(d, files, counts) = unique_via_comparsions(dir, hash_funs=[os.path.getsize, f, get_hash])
 end_time = time.time()
 print(f"Time elapsed for sizes and file size: {end_time - start_time}")
 print(f"Total files: {len(files)}")
 print(f"Total unique: {len(d)}")
 for i in range(len(counts)):
     print(f"Number of files after {i+1} hash functions: {counts[i]} ({counts[i]/len(files)*100:.2f}%)")
-for k in d:
-    if len(d[k]) > 1:
-        print(f"Same file: {[files[i] for i in d[k]]}")
-# for h in size_dict:
-#     if not h in size_dict_2 or len(size_dict[h]) != len(size_dict_2[h]):
-#         print(f"{h} in size_dict: {size_dict[h]}")
-#         print(f"{h} in size_dict_2: {size_dict_2.pop(h,None)}")
+print("")
 
-# dir is either the first command line argument passed or os.getcwd() if no args passed
-# dir = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
-# start_time = time.time()
-# (size_dict, files, count, unique_sizes) = same_size_same_hash(dir, prnt=False)
-# end_time = time.time()
-# print(f"Time elapsed: {end_time - start_time}")
-# print(f"Total number of files: {len(files)}")
-# # print(f"Total size_dict size: {len(size_dict)}")
-# print(f"Total unique files: {count} ({count / len(files) * 100:.2f}%)")
-# print(f"Total unique sizes: {unique_sizes} ({unique_sizes / len(files) * 100:.2f}%)")
-# print(f"Total duplicate files: {len(files) - count} ({(len(files) - count) / len(files) * 100:.2f}%)")
-# print(f"Total same sized files: {len(files) - unique_sizes} ({(len(files) - unique_sizes) / len(files) * 100:.2f}%)")
-
-# compare the runtimes of find_all and find_all_scandir
-# start_time = time.time()
-# files = find_all(os.getcwd(), skip_hidden=True, testing_old=True)
-# end_time = time.time()
-# print(f"Time elapsed for find_all: {end_time - start_time}")
-# print(len(files))
-
-# start_time = time.time()
-# files = find_all_scandir(os.getcwd(), skip_hidden=True)
-# end_time = time.time()
-# print(f"Time elapsed for find_all_scandir: {end_time - start_time}")
-# print(len(files))
-
-    # hash_dir = [hash_funs[0](files[i]) for i in range(len(files))]
-    # for size in size_dict:
-    #     if len(size_dict[size]) > 1:
-    #         files_to_hash += size_dict[size]
-    # for i in files_to_hash:
-    #     size_dict.pop(sizes[i])
-    # init_comp = [hash_funs[0](files[i]) for i in files_to_hash]
-
-
-    # files = find_all_scandir(path, skip_hidden=True)
-    # files.sort()
-    # if len(hash_funs) == 0:
-    #     return {}
-    # init_comp = [hash_funs[0](f) for f in files]
-    # hash_dict = size_dict
-    # needs_hashing = hash_dict.keys()
-    # for fun in hash_funs:
-    #     new_hashing = []
-    #     for h in needs_hashing:
-    #         if len(hash_dict[h]) > 1:
-    #             l = hash_dict[h]
-    #             hashes = [fun(l[i]) for i in range(len(l))]
-    #             for i in range(len(hashes)):
-    #                 if hashes[i] in hash_dict:
-    #                     hash_dict[hashes[i]].append(l[i])
-    #                     needs_hashing.append(h) if h not in needs_hashing else None
-    #                 else:
-    #                     hash_dict[hashes[i]] = [l[i]]
-    #             hash_dict.pop(h)
-    #             # if len(set(hashes)) == len(l):
-    #             #     new_hashing.append(h)
-    #     for i in range(len(init_comp)):
-    #         if init_comp[i] in hash_dict:
-    #             hash_dict[init_comp[i]].append(files[i])
-    #         else:
-    #             hash_dict[init_comp[i]] = [files[i]]
-    # for h in to_recurse:
-    #     new_dict = unique_via_comparsions_files(hash_dict[h], hash_funs[1:])
-    #     hash_dict = hash_dict | new_dict
-    #     hash_dict.pop(h)
-    # return hash_dict
-
-
-
-
-
-
-
-
-
-
-
-
+if not (dirs_to_replace is None and replace_all == False):
+    print(f"At this stage, the program will attempt to replace duplicate files with symlinks. Are you sure you want to continue? [y/N]")
+    ans = input()
+    if ans == 'y':
+        replace_count = 0
+        for key in d:
+            if len(d[key]) > 1:
+                fs = [files[i] for i in d[key]]
+                replace_count += determine_and_replace(fs, dirs_to_replace, replace_all)
+        print(f"Total replaced files: {replace_count}")
